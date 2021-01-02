@@ -216,8 +216,11 @@ def createRaster(bounds, output=None, pixelWidth=100, pixelHeight=100, dtype=Non
     # Get DataType
     if(not dtype is None):  # a dtype was given, use it!
         dtype = gdalType(dtype)
-    elif (not data is None):  # a data matrix was give, use it's dtype! (assume a numpy array or derivative)
-        dtype = gdalType(data.dtype)
+    elif (not data is None):  # a data matrix was given, use it's dtype! (assume a numpy array or derivative)
+        if isinstance(data, list):
+            raise ValueError("If passing a list of data bands, a dtype must be specified")
+        else:
+            dtype = gdalType(data.dtype)
     else:  # Otherwise, just assume we want a Byte
         dtype = "GDT_Byte"
 
@@ -235,7 +238,8 @@ def createRaster(bounds, output=None, pixelWidth=100, pixelHeight=100, dtype=Non
     else:
 
         driver = gdal.GetDriverByName('GTiff')  # Create a raster in storage
-        raster = driver.Create(output, cols, rows, 1,
+        n_bands = len(data) if isinstance(data,list) else 1
+        raster = driver.Create(output, cols, rows, n_bands,
                                getattr(gdal, dtype), opts)
 
     if(raster is None):
@@ -252,38 +256,42 @@ def createRaster(bounds, output=None, pixelWidth=100, pixelHeight=100, dtype=Non
             raster.SetProjection(rasterSRS.ExportToWkt())
 
         # Fill the raster will zeros, null values, or initial values (if given)
-        band = raster.GetRasterBand(1)
-        if not scale is None:
-            band.SetScale(scale)
-        if not offset is None:
-            band.SetOffset(offset)
+        if not  isinstance(data,list):
+            data = [data]
 
-        if(not noData is None):
-            band.SetNoDataValue(noData)
-            if fill is None and data is None:
-                band.Fill(noData)
+        for band_i, data_slice in enumerate(data):
+            band = raster.GetRasterBand(band_i+1)
+            if not scale is None:
+                band.SetScale(scale)
+            if not offset is None:
+                band.SetOffset(offset)
 
-        if(data is None):
-            if fill is None:
-                band.Fill(0)
+            if(not noData is None):
+                band.SetNoDataValue(noData)
+                if fill is None and data_slice is None:
+                    band.Fill(noData)
+
+            if(data_slice is None):
+                if fill is None:
+                    band.Fill(0)
+                else:
+                    band.Fill(fill)
             else:
-                band.Fill(fill)
-        else:
-            # make sure dimension size is good
-            if not (data.shape[0] == rows and data.shape[1] == cols):
-                raise GeoKitRasterError(
-                    "Raster dimensions and input data dimensions do not match")
+                # make sure dimension size is good
+                if not (data_slice.shape[0] == rows and data_slice.shape[1] == cols):
+                    raise GeoKitRasterError(
+                        "Raster dimensions and input data dimensions do not match")
 
-            # See if data needs flipping
-            if pixelHeight < 0:
-                data = data[::-1, :]
+                # See if data needs flipping
+                if pixelHeight < 0:
+                    data_slice = data_slice[::-1, :]
 
-            # Write it!
-            band.WriteArray(data)
-            band.FlushCache()
+                # Write it!
+                band.WriteArray(data_slice)
+                band.FlushCache()
 
-            band.ComputeRasterMinMax(0)
-            band.ComputeBandStats(0)
+                band.ComputeRasterMinMax(0)
+                band.ComputeBandStats(0)
 
         raster.FlushCache()
 
