@@ -396,6 +396,7 @@ def extractMatrix(
     maskBand=False,
     autocorrect=False,
     returnBounds=False,
+    band=1,
 ):
     """extract all or part of a raster's band as a numpy matrix
 
@@ -447,7 +448,7 @@ def extractMatrix(
     if maskBand:
         mb = sourceDS.GetMaskBand()
     else:
-        sourceBand = sourceDS.GetRasterBand(1)  # get band
+        sourceBand = sourceDS.GetRasterBand(band)  # get band
 
     # Handle the boundaries
     if not bounds is None:
