@@ -1240,8 +1240,11 @@ class RegionMask(object):
         """
         xlim = kwargs.pop("xlim", (self.extent.xMin, self.extent.xMax))
         ylim = kwargs.pop("ylim", (self.extent.yMin, self.extent.yMax))
-        ax = GEOM.drawGeoms(self.geometry, ax=ax, srs=self.srs,
-                            xlim=xlim, ylim=ylim, **kwargs)
+        resolution = (self.pixelWidth, self.pixelHeight)
+        ax = RASTER.drawRaster(
+            source, srs=self.srs, ax=ax, resolution=resolution,
+            cutline=self.geometry, xlim=xlim, ylim=ylim, **kwargs
+        )
 
         if drawSelf:
             self.drawSelf(ax=ax, fc='None', ec='k', linewidth=2)
